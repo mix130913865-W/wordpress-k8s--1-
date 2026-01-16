@@ -1,17 +1,21 @@
-apiVersion: v1
-kind: Service
+apiVersion: v1 # Kubernetes API version，Service 屬於 core/v1
+kind: Service # Resource type：Service，用來提供 Pod 的穩定存取入口
+
 metadata:
-  name: {{ include "wordpress.mysql.fullname" . }}
+  name: {{ include "wordpress.mysql.fullname" . }} # Service name，使用 Helm helper 確保與其他資源一致
   labels:
-    {{- include "wordpress.labels" . | nindent 4 }}
-    app.kubernetes.io/component: database
+    {{- include "wordpress.labels" . | nindent 4 }} # 套用 Chart 定義的共用 labels
+    app.kubernetes.io/component: database # 標記此 Service 屬於 database component
+
 spec:
   ports:
-    - port: {{ .Values.mysql.service.port }}
-      targetPort: mysql
-      name: mysql
+    - name: mysql # Service port name
+      port: {{ .Values.mysql.service.port }} # Service 對外暴露的 port，由 values.yaml 定義
+      targetPort: mysql # 對應到 Pod containerPort 名稱（mysql）
+
   selector:
-    {{- include "wordpress.selectorLabels" . | nindent 4 }}
-    app.kubernetes.io/component: database
-    tier: mysql
-  clusterIP: None
+    {{- include "wordpress.selectorLabels" . | nindent 4 }} # Service selector，必須與 Pod labels 匹配
+    app.kubernetes.io/component: database # selector 條件：database component
+    tier: mysql # selector 條件：mysql tier
+
+  clusterIP: None # Headless Service，不配置 ClusterIP，直接回傳 Pod IP

@@ -1,17 +1,21 @@
-apiVersion: v1
-kind: Service
+apiVersion: v1 # Kubernetes API version，Service 屬於 core/v1
+kind: Service # Resource type：Service，用來暴露 frontend Pod
+
 metadata:
-  name: {{ include "wordpress.fullname" . }}
+  name: {{ include "wordpress.fullname" . }} # Service name，使用 Helm helper 生成
   labels:
-    {{- include "wordpress.labels" . | nindent 4 }}
-    app.kubernetes.io/component: frontend
+    {{- include "wordpress.labels" . | nindent 4 }} # 套用 Chart 共用 labels
+    app.kubernetes.io/component: frontend # 標記此 Service 屬於 frontend component
+
 spec:
   ports:
-    - port: {{ .Values.wordpress.service.port }}
-      targetPort: wordpress
-      name: http
+    - name: http # Service port name
+      port: {{ .Values.wordpress.service.port }} # Service 對外暴露 port，由 values.yaml 定義
+      targetPort: wordpress # 對應 Pod containerPort 名稱（wordpress）
+
   selector:
-    {{- include "wordpress.selectorLabels" . | nindent 4 }}
-    app.kubernetes.io/component: frontend
-    tier: frontend
-  type: {{ .Values.wordpress.service.type }}
+    {{- include "wordpress.selectorLabels" . | nindent 4 }} # Service selector，必須匹配 Pod labels
+    app.kubernetes.io/component: frontend # selector 條件：frontend component
+    tier: frontend # selector 條件：frontend tier
+
+  type: {{ .Values.wordpress.service.type }} # Service type，由 values.yaml 定義（ClusterIP / NodePort / LoadBalancer）

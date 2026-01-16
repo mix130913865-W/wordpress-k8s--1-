@@ -1,61 +1,74 @@
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: apps/v1 # Kubernetes API version，Deployment 使用 apps/v1
+kind: Deployment # Resource type：Deployment，用來管理 ReplicaSet 與 Pod
+
 metadata:
-  name: {{ include "wordpress.mysql.fullname" . }}
+  name: {{ include "wordpress.mysql.fullname" . }} # Helm helper function，動態產生 resource name，確保不同 Release 不衝突
   labels:
-    {{- include "wordpress.labels" . | nindent 4 }}
-    app.kubernetes.io/component: database
-    tier: mysql
+    {{- include "wordpress.labels" . | nindent 4 }} # 套用 Chart 定義的共用 labels（app name / version 等），nindent 4 = 每一行前面補 4 個空白
+    app.kubernetes.io/component: database # 宣告此 component 類型為 database
+    tier: mysql # 自訂分層標籤，表示屬於 mysql tier
+
 spec:
   selector:
     matchLabels:
-      {{- include "wordpress.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: database
-      tier: mysql
+      {{- include "wordpress.selectorLabels" . | nindent 6 }} # Deployment selector，必須與 Pod template labels 完全一致
+      app.kubernetes.io/component: database # selector 條件：database component
+      tier: mysql # selector 條件：mysql tier
+
   strategy:
-    type: Recreate
+    type: Recreate # Deployment strategy：Recreate，避免 RWO PVC 被多個 Pod 同時掛載
+
   template:
     metadata:
       labels:
-        {{- include "wordpress.selectorLabels" . | nindent 8 }}
-        app.kubernetes.io/component: database
-        tier: mysql
+        {{- include "wordpress.selectorLabels" . | nindent 8 }} # Pod labels，供 Service 與 Deployment 使用
+        app.kubernetes.io/component: database # 標記 Pod 為 database component
+        tier: mysql # 標記 Pod 層級為 mysql
+
     spec:
       containers:
-      - image: "{{ .Values.mysql.image.repository }}:{{ .Values.mysql.image.tag }}"
-        name: mysql
-        env:
-        - name: MYSQL_ROOT_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: {{ include "wordpress.fullname" . }}-mysql-secret
-              key: mysql-root-password
-        - name: MYSQL_DATABASE
-          valueFrom:
-            secretKeyRef:
-              name: {{ include "wordpress.fullname" . }}-mysql-secret
-              key: mysql-database
-        - name: MYSQL_USER
-          valueFrom:
-            secretKeyRef:
-              name: {{ include "wordpress.fullname" . }}-mysql-secret
-              key: mysql-user
-        - name: MYSQL_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: {{ include "wordpress.fullname" . }}-mysql-secret
-              key: mysql-password
-        ports:
-        - containerPort: {{ .Values.mysql.service.port }}
-          name: mysql
-        volumeMounts:
-        - name: mysql-persistent-storage
-          mountPath: /var/lib/mysql
-        {{- with .Values.mysql.resources }}
-        resources:
-          {{- toYaml . | nindent 10 }}
-        {{- end }}
+        - name: mysql # Container name
+          image: "{{ .Values.mysql.image.repository }}:{{ .Values.mysql.image.tag }}" # Image 來源由 values.yaml 動態注入
+
+          env:
+            - name: MYSQL_ROOT_PASSWORD # MySQL root password environment variable
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "wordpress.fullname" . }}-mysql-secret # 對應的 Kubernetes Secret 名稱
+                  key: mysql-root-password # Secret 中的 key
+
+            - name: MYSQL_DATABASE # MySQL 預設 database 名稱
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "wordpress.fullname" . }}-mysql-secret # 同一個 Secret
+                  key: mysql-database # database key
+
+            - name: MYSQL_USER # MySQL application user
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "wordpress.fullname" . }}-mysql-secret # Secret reference
+                  key: mysql-user # user key
+
+            - name: MYSQL_PASSWORD # MySQL application user password
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "wordpress.fullname" . }}-mysql-secret # Secret reference
+                  key: mysql-password # password key
+
+          ports:
+            - name: mysql # Container port name
+              containerPort: {{ .Values.mysql.service.port }} # Container 監聽 port，由 values.yaml 定義
+
+          volumeMounts:
+            - name: mysql-persistent-storage # 對應 volumes 定義的名稱
+              mountPath: /var/lib/mysql # MySQL data directory，資料實際存放位置
+
+          {{- with .Values.mysql.resources }}
+          resources: # Container resource requests / limits（conditional render）
+            {{- toYaml . | nindent 12 }} # 將 values.yaml 內容轉為 YAML 並保持縮排
+          {{- end }}
+
       volumes:
-      - name: mysql-persistent-storage
-        persistentVolumeClaim:
-          claimName: {{ include "wordpress.mysql.fullname" . }}
+        - name: mysql-persistent-storage # Volume 名稱
+          persistentVolumeClaim:
+            claimName: {{ include "wordpress.mysql.fullname" . }} # 綁定 PVC，確保 Pod 重建資料仍存在

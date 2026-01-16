@@ -1,57 +1,70 @@
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: apps/v1 # Kubernetes API version，Deployment 使用 apps/v1
+kind: Deployment # Resource type：Deployment，用來管理 ReplicaSet 與 Pod
+
 metadata:
-  name: {{ include "wordpress.fullname" . }}
+  name: {{ include "wordpress.fullname" . }} # Helm helper，動態產生 Deployment name
   labels:
-    {{- include "wordpress.labels" . | nindent 4 }}
-    app.kubernetes.io/component: frontend
+    {{- include "wordpress.labels" . | nindent 4 }} # 套用 Chart 共用 labels
+    app.kubernetes.io/component: frontend # 標記此 Deployment 屬於 frontend component
+
 spec:
   selector:
     matchLabels:
-      {{- include "wordpress.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: frontend
-      tier: frontend
+      {{- include "wordpress.selectorLabels" . | nindent 6 }} # Deployment selector，必須與 Pod template labels 完全一致
+      app.kubernetes.io/component: frontend # selector 條件：frontend component
+      tier: frontend # selector 條件：frontend tier
+
   strategy:
-    type: Recreate
+    type: Recreate # Deployment strategy：Recreate，避免多個 Pod 同時掛載同一 PVC
+
   template:
     metadata:
       labels:
-        {{- include "wordpress.selectorLabels" . | nindent 8 }}
-        app.kubernetes.io/component: frontend
-        tier: frontend
+        {{- include "wordpress.selectorLabels" . | nindent 8 }} # Pod labels，供 Service 與 Deployment 使用
+        app.kubernetes.io/component: frontend # 標記 Pod 為 frontend component
+        tier: frontend # 標記 Pod 層級為 frontend
+
     spec:
       containers:
-      - image: "{{ .Values.wordpress.image.repository }}:{{ .Values.wordpress.image.tag }}"
-        name: wordpress
-        env:
-        - name: WORDPRESS_DB_HOST
-          value: {{ include "wordpress.mysql.fullname" . }}
-        - name: WORDPRESS_DB_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: {{ include "wordpress.fullname" . }}-mysql-secret
-              key: mysql-password
-        - name: WORDPRESS_DB_USER
-          valueFrom:
-            secretKeyRef:
-              name: {{ include "wordpress.fullname" . }}-mysql-secret
-              key: mysql-user
-        - name: WORDPRESS_DB_NAME
-          valueFrom:
-            secretKeyRef:
-              name: {{ include "wordpress.fullname" . }}-mysql-secret
-              key: mysql-database
-        ports:
-        - containerPort: {{ .Values.wordpress.service.port }}
-          name: wordpress
-        volumeMounts:
-        - name: wordpress-persistent-storage
-          mountPath: /var/www/html
-        {{- with .Values.wordpress.resources }}
-        resources:
-          {{- toYaml . | nindent 10 }}
-        {{- end }}
+        - name: wordpress # Container name
+          image: "{{ .Values.wordpress.image.repository }}:{{ .Values.wordpress.image.tag }}" # Image 來源由 values.yaml 動態注入
+
+          env:
+            - name: WORDPRESS_DB_HOST # WordPress DB host
+              value: {{ include "wordpress.mysql.fullname" . }} # 指向 MySQL Deployment / Service
+
+            - name: WORDPRESS_DB_PASSWORD # WordPress DB password
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "wordpress.fullname" . }}-mysql-secret # 參照 Secret
+                  key: mysql-password # Secret key
+
+            - name: WORDPRESS_DB_USER # WordPress DB user
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "wordpress.fullname" . }}-mysql-secret # 參照 Secret
+                  key: mysql-user # Secret key
+
+            - name: WORDPRESS_DB_NAME # WordPress DB name
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "wordpress.fullname" . }}-mysql-secret # 參照 Secret
+                  key: mysql-database # Secret key
+
+          ports:
+            - name: wordpress # Container port name
+              containerPort: {{ .Values.wordpress.service.port }} # Container 監聽 port，由 values.yaml 定義
+
+          volumeMounts:
+            - name: wordpress-persistent-storage # 對應 Pod volumes
+              mountPath: /var/www/html # WordPress 資料目錄
+
+          {{- with .Values.wordpress.resources }}
+          resources: # Container resource requests / limits（conditional render）
+            {{- toYaml . | nindent 10 }} # 將 values.yaml 內容轉為 YAML 並保持縮排
+          {{- end }}
+
       volumes:
-      - name: wordpress-persistent-storage
-        persistentVolumeClaim:
-          claimName: {{ include "wordpress.fullname" . }}
+        - name: wordpress-persistent-storage # Pod volume 名稱
+          persistentVolumeClaim:
+            claimName: {{ include "wordpress.fullname" . }} # 綁定 PVC，確保資料持久化

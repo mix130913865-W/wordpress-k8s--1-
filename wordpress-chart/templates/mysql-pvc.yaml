@@ -1,16 +1,22 @@
-{{- if .Values.mysql.persistence.enabled }}
-apiVersion: v1
-kind: PersistentVolumeClaim
+{{- if .Values.mysql.persistence.enabled }} # Helm conditional：只有 mysql.persistence.enabled=true 才建立 PVC
+
+apiVersion: v1 # Kubernetes API version，PersistentVolumeClaim 屬於 core/v1
+kind: PersistentVolumeClaim # Resource type：PVC，用來向 cluster 請求 persistent storage
+
 metadata:
-  name: {{ include "wordpress.mysql.fullname" . }}
+  name: {{ include "wordpress.mysql.fullname" . }} # 動態產生 PVC name，需與 Deployment 的 claimName 一致
   labels:
-    {{- include "wordpress.labels" . | nindent 4 }}
-    app.kubernetes.io/component: database
+    {{- include "wordpress.labels" . | nindent 4 }} # 注入 Chart 定義的共用 labels
+    app.kubernetes.io/component: database # 標記此 storage 屬於 database component
+
 spec:
   accessModes:
-    - ReadWriteOnce
-  storageClassName: {{ .Values.mysql.persistence.storageClass }}
+    - ReadWriteOnce # AccessMode：RWO，只能被單一 node 以讀寫模式掛載（database 常見設定）
+
+  storageClassName: {{ .Values.mysql.persistence.storageClass }} # StorageClass，由 values.yaml 決定後端儲存類型（EBS / SSD 等）
+
   resources:
     requests:
-      storage: {{ .Values.mysql.persistence.size }}
-{{- end }}
+      storage: {{ .Values.mysql.persistence.size }} # PVC storage request，例如 8Gi、20Gi
+
+{{- end }} # 結束 Helm conditional block

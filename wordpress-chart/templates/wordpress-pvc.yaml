@@ -1,16 +1,20 @@
-{{- if .Values.wordpress.persistence.enabled }}
-apiVersion: v1
-kind: PersistentVolumeClaim
+{{- if .Values.wordpress.persistence.enabled }} # Helm conditional：只有 wordpress.persistence.enabled=true 才建立 PVC
+
+apiVersion: v1 # Kubernetes API version，PersistentVolumeClaim 屬於 core/v1
+kind: PersistentVolumeClaim # Resource type：PVC，用來向 cluster 請求 persistent storage
+
 metadata:
-  name: {{ include "wordpress.fullname" . }}
+  name: {{ include "wordpress.fullname" . }} # PVC name，使用 Helm helper 生成
   labels:
-    {{- include "wordpress.labels" . | nindent 4 }}
-    app.kubernetes.io/component: frontend
+    {{- include "wordpress.labels" . | nindent 4 }} # 套用 Chart 共用 labels
+    app.kubernetes.io/component: frontend # 標記此 PVC 屬於 frontend component
+
 spec:
   accessModes:
-    - ReadWriteOnce
-  storageClassName: {{ .Values.wordpress.persistence.storageClass }}
+    - ReadWriteOnce # AccessMode：RWO，只能被單一 node 以讀寫模式掛載（frontend persistent storage 常見設定）
+  storageClassName: {{ .Values.wordpress.persistence.storageClass }} # StorageClass，由 values.yaml 決定後端儲存類型
   resources:
     requests:
-      storage: {{ .Values.wordpress.persistence.size }}
-{{- end }}
+      storage: {{ .Values.wordpress.persistence.size }} # PVC storage request，例如 8Gi、20Gi
+
+{{- end }} # 結束 Helm conditional block

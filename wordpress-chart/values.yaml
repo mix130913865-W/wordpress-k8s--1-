@@ -57,7 +57,7 @@ ingress:
 
 # Secret configuration
 secret:
-  mysqlRootPassword: "rootpassword"
-  mysqlPassword: "wordpresspass"
+  mysqlRootPassword: "CHANGE_ME"
+  mysqlPassword: "CHANGE_ME"
   mysqlDatabase: "wordpress"
-  mysqlUser: "wordpress"
+  mysqlUser: "CHANGE_ME"
