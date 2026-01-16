@@ -8,33 +8,43 @@
 - Ingress（可選 TLS）
 - 可透過 `values.yaml` 配置資源、儲存與密碼
 
-          ┌───────────────┐
-          │  Ingress      │
-          │  (nginx)      │
-          └──────┬────────┘
-                 │ HTTP/HTTPS
-                 ▼
-          ┌───────────────┐
-          │ WordPress     │
-          │ Service       │
-          └──────┬────────┘
-                 │ selector
-                 ▼
-          ┌───────────────┐
-          │ WordPress     │
-          │ Deployment    │
-          │  + PVC        │
-          └──────┬────────┘
-                 │ env (DB info from Secret)
-                 ▼
-          ┌───────────────┐
-          │ MySQL Service │
-          └──────┬────────┘
-                 │ selector
-                 ▼
-          ┌───────────────┐
-          │ MySQL         │
-          │ Deployment    │
-          │  + PVC        │
-          │  + Secret     │
-          └───────────────┘
+       [ 外部流量 (Users) ]
+                |
+                v
++-------------------------------+
+|       Ingress (Nginx)         | <--- 管理 Domain & SSL (TLS)
++---------------+---------------+
+                |
+          HTTP / HTTPS
+                |
+                v
++-------------------------------+
+|       WordPress Service       | <--- 穩定的內部 IP (ClusterIP)
++---------------+---------------+
+                |
+            Selector
+                |
+                v
++-------------------------------+       +--------------------------+
+|     WordPress Deployment      | <---  |      Shared Secret       |
+|  - Pods (WP Engine)           | <---  | (DB_USER, DB_PASSWORD)   |
+|  - PVC (wp-content uploads)   |       +------------+-------------+
++---------------+---------------+                    |
+                |                                    |
+          TCP (Port 3306)                            | 注入環境變數
+          Connect to DNS:                            |
+          "mysql-service"                            |
+                |                                    |
+                v                                    |
++-------------------------------+                    |
+|         MySQL Service         |                    |
++---------------+---------------+                    |
+                |                                    |
+            Selector                                 |
+                |                                    |
+                v                                    |
++-------------------------------+                    |
+|       MySQL StatefulSet       | <------------------+
+|  - Pod (Database Engine)      |
+|  - PVC (Database Files)       |
++-------------------------------+
